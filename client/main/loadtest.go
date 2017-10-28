@@ -7,47 +7,84 @@ import (
 	"strings"
 	"time"
 
+	"math/rand"
+
 	hc "github.com/jelinden/hackdaycache"
 	"github.com/jelinden/hackdaycache/client"
 	"github.com/julienschmidt/httprouter"
 )
 
 func main() {
-	url := "https://httpbin.org/ip"
-	i := hc.CacheItem{
-		Key:          url,
-		Value:        client.DataFetch(url),
-		Expire:       time.Now(),
-		UpdateLength: 10 * time.Second,
-		GetFunc:      client.DataFetch,
-		InUse:        false,
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	for _, u := range urls {
+		item := hc.CacheItem{
+			Key:          u,
+			Value:        client.DataFetch(u),
+			Expire:       time.Now().Add(time.Duration(r1.Intn(35)+5) * time.Second),
+			UpdateLength: time.Duration(r1.Intn(35)+5) * time.Second,
+			GetFunc:      client.DataFetch,
+		}
+		hc.AddItem(item)
 	}
-	hc.AddItem(i)
-
 	router := httprouter.New()
 	router.RedirectFixedPath = true
 	router.RedirectTrailingSlash = true
-	router.GET("/httpbin", Bin)
-	go fetch()
+	for _, u := range urls {
+		router.GET("/"+strings.Replace(strings.Replace(u, "http://", "", -1), "https://", "", -1), func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+			item := hc.GetItem("http:/" + r.URL.Path)
+			if item != nil {
+				w.Header().Add("Content-Type", "text/html")
+				w.WriteHeader(200)
+				w.Write(item)
+			} else {
+				w.WriteHeader(404)
+				w.Write([]byte("Not found"))
+			}
+		})
+	}
+	go runURLs()
 	http.ListenAndServe(":8800", router)
 }
 
-func Bin(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	item := hc.GetItem("https://httpbin.org/ip")
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(200)
-	w.Write(item)
+func runURLs() {
+	for _, u := range urls {
+		go fetch("http://localhost:8800/"+strings.Replace(strings.Replace(u, "http://", "", -1), "https://", "", -1), "title")
+	}
 }
 
-func fetch() {
+func fetch(url, match string) {
 	t := time.Now()
-	const howMany = 100000
+	const howMany = 1000
 	for i := 0; i < howMany; i++ {
-		item := client.DataFetch("http://localhost:8800/httpbin")
-		if !strings.Contains(string(item), "origin") {
+		item := client.DataFetch(url)
+		if item == nil || !strings.Contains(string(item), match) {
 			os.Exit(2)
 		}
 	}
 	log.Println("fetched", howMany, "times from cache successfully in", time.Now().Sub(t))
-	os.Exit(1)
+}
+
+var urls = []string{
+	"http://m.kauppalehti.fi/",
+	"http://www.iltalehti.fi/",
+	"http://www.aamulehti.fi/",
+	"http://www.hs.fi/",
+	"http://www.talouselama.fi/",
+	"http://www.arvopaperi.fi/",
+	"http://www.tivi.fi/",
+	"http://www.mikrobitti.fi/",
+	"http://www.tekniikkatalous.fi/",
+	"http://www.marmai.fi/",
+	"http://www.dagensmedia.se/",
+	"http://www.affarsvarlden.se/",
+	"http://www.nyteknik.se/",
+	"http://www.mtv.fi/",
+	"http://www.reuters.com/",
+	"http://www.cnbc.com/economy/",
+	"http://www.bbc.com/news/business/economy",
+	"http://www.wsj.com/news/economy",
+	"http://www.theguardian.com/business/economics",
+	"http://www.marketwatch.com/",
+	"http://money.cnn.com/",
 }

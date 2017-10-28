@@ -17,8 +17,7 @@ func init() {
 func checkExpiredItems() {
 	for _, value := range cache.Items() {
 		item := value.(CacheItem)
-		if time.Now().After(item.Expire.Add(-1*time.Second)) && !item.InUse {
-			item.InUse = true
+		if time.Now().After(item.Expire.Add(-1 * time.Second)) {
 			go worker(item)
 		}
 	}
@@ -33,7 +32,6 @@ func worker(item CacheItem) {
 			Expire:       time.Now().Add(item.UpdateLength),
 			UpdateLength: item.UpdateLength,
 			GetFunc:      item.GetFunc,
-			InUse:        false,
 		}
 		cache.Set(item.Key, d)
 	}
@@ -65,5 +63,4 @@ type CacheItem struct {
 	Expire       time.Time
 	UpdateLength time.Duration
 	GetFunc      func(key string) []byte
-	InUse        bool
 }

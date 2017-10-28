@@ -17,7 +17,6 @@ func TestSetItem(t *testing.T) {
 		Expire:       time.Now(),
 		UpdateLength: 1 * time.Second,
 		GetFunc:      client.DataFetch,
-		InUse:        false,
 	}
 	AddItem(i)
 	time.Sleep(2 * time.Second)
