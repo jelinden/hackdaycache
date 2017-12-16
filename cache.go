@@ -24,7 +24,7 @@ func checkExpiredItems() {
 }
 
 func worker(item CacheItem) {
-	value := item.GetFunc(item.Key)
+	value := item.GetFunc(item.Key, item.FuncParams...)
 	if value != nil {
 		d := CacheItem{
 			Key:          item.Key,
@@ -32,13 +32,14 @@ func worker(item CacheItem) {
 			Expire:       time.Now().Add(item.UpdateLength),
 			UpdateLength: item.UpdateLength,
 			GetFunc:      item.GetFunc,
+			FuncParams:   item.FuncParams,
 		}
 		cache.Set(item.Key, d)
 	}
 }
 
 // GetItem value from cache
-func GetItem(key string) []byte {
+func GetItem(key string, params ...string) []byte {
 	value, ok := cache.Get(key)
 	if ok {
 		return value.(CacheItem).Value
@@ -62,5 +63,6 @@ type CacheItem struct {
 	Value        []byte
 	Expire       time.Time
 	UpdateLength time.Duration
-	GetFunc      func(key string) []byte
+	GetFunc      func(key string, params ...string) []byte
+	FuncParams   []string
 }

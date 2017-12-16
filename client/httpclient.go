@@ -35,7 +35,7 @@ func httpGet(url string) ([]byte, error) {
 	return body, nil
 }
 
-func DataFetch(url string) []byte {
+func DataFetch(url string, params ...string) []byte {
 	data, err := httpGet(url)
 	if err != nil {
 		log.Println("getting", url, "failed", err.Error())
